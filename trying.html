@@ -44,12 +44,14 @@
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 450px;
+            max-width: 500px;
             width: 100%;
             position: relative;
             z-index: 1;
             backdrop-filter: blur(20px) saturate(180%);
             -webkit-backdrop-filter: blur(20px) saturate(180%);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         h1 {
@@ -63,7 +65,15 @@
         .search-box {
             display: flex;
             gap: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+        }
+
+        .search-help {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85em;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
         }
 
         input {
@@ -129,6 +139,14 @@
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
         }
 
+        .local-time {
+            font-size: 1.3em;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            font-weight: 300;
+        }
+
         .temperature {
             font-size: 4em;
             font-weight: bold;
@@ -156,6 +174,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-top: 30px;
+            margin-bottom: 30px;
         }
 
         .detail-item {
@@ -176,6 +195,31 @@
             color: #fff;
             font-size: 1.2em;
             font-weight: bold;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .biography {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .biography h3 {
+            color: #fff;
+            font-size: 1.3em;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .biography p {
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+            font-size: 0.95em;
             text-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
         }
 
@@ -205,6 +249,27 @@
         .loading.show {
             display: block;
         }
+
+        /* Responsive design */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                max-width: 95%;
+            }
+            
+            .details {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .temperature {
+                font-size: 3em;
+            }
+            
+            .city-name {
+                font-size: 1.5em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -212,8 +277,12 @@
         <h1>⛅ Weather App</h1>
         
         <div class="search-box">
-            <input type="text" id="cityInput" placeholder="Enter city name..." />
+            <input type="text" id="cityInput" placeholder="Enter city name (e.g., Rome,IT or New York,US)..." />
             <button id="searchBtn">Search</button>
+        </div>
+        
+        <div class="search-help">
+            💡 Tip: Add country code for specific cities (e.g., "Rome,IT" for Italy, "Rome,US" for USA)
         </div>
 
         <div class="loading" id="loading">Loading...</div>
@@ -221,7 +290,8 @@
 
         <div class="weather-info" id="weatherInfo">
             <div class="city-name" id="cityName"></div>
-            <img class="weather-icon" id="weatherIcon" alt="Weather icon" />
+            <div class="local-time" id="localTime"></div>
+            <img class="weather-icon" id="weatherIcon" alt="Weather icon" style="display: none;" />
             <div class="temperature" id="temperature"></div>
             <div class="description" id="description"></div>
             
@@ -243,11 +313,16 @@
                     <div class="detail-value" id="pressure"></div>
                 </div>
             </div>
+
+            <div class="biography" id="biography">
+                <h3 id="biographyTitle"></h3>
+                <p id="biographyText"></p>
+            </div>
         </div>
     </div>
 
     <script>
-        const API_KEY = '0baea0c2a1490b36b30af225ec7b52e4'; // Get free key from openweathermap.org
+        const API_KEY = ''; // Free key from openweathermap.org
         const cityInput = document.getElementById('cityInput');
         const searchBtn = document.getElementById('searchBtn');
         const weatherInfo = document.getElementById('weatherInfo');
@@ -256,6 +331,7 @@
 
         // Elements to update
         const cityName = document.getElementById('cityName');
+        const localTime = document.getElementById('localTime');
         const temperature = document.getElementById('temperature');
         const description = document.getElementById('description');
         const weatherIcon = document.getElementById('weatherIcon');
@@ -263,6 +339,178 @@
         const humidity = document.getElementById('humidity');
         const windSpeed = document.getElementById('windSpeed');
         const pressure = document.getElementById('pressure');
+        const biographyTitle = document.getElementById('biographyTitle');
+        const biographyText = document.getElementById('biographyText');
+
+        // Major cities mapping for automatic country code addition
+        const majorCities = {
+            'rome': 'Rome,IT',
+            'paris': 'Paris,FR',
+            'london': 'London,GB',
+            'tokyo': 'Tokyo,JP',
+            'berlin': 'Berlin,DE',
+            'madrid': 'Madrid,ES',
+            'moscow': 'Moscow,RU',
+            'beijing': 'Beijing,CN',
+            'cairo': 'Cairo,EG',
+            'mumbai': 'Mumbai,IN',
+            'sydney': 'Sydney,AU',
+            'toronto': 'Toronto,CA',
+            'mexico city': 'Mexico City,MX',
+            'buenos aires': 'Buenos Aires,AR',
+            'lagos': 'Lagos,NG',
+            'cape town': 'Cape Town,ZA',
+            'nairobi': 'Nairobi,KE',
+            'dubai': 'Dubai,AE',
+            'singapore': 'Singapore,SG',
+            'bangkok': 'Bangkok,TH',
+            'seoul': 'Seoul,KR',
+            'jakarta': 'Jakarta,ID',
+            'manila': 'Manila,PH',
+            'istanbul': 'Istanbul,TR',
+            'athens': 'Athens,GR',
+            'amsterdam': 'Amsterdam,NL',
+            'vienna': 'Vienna,AT',
+            'prague': 'Prague,CZ',
+            'budapest': 'Budapest,HU',
+            'stockholm': 'Stockholm,SE',
+            'oslo': 'Oslo,NO',
+            'copenhagen': 'Copenhagen,DK',
+            'helsinki': 'Helsinki,FI',
+            'warsaw': 'Warsaw,PL',
+            'lisbon': 'Lisbon,PT',
+            'barcelona': 'Barcelona,ES',
+            'milan': 'Milan,IT',
+            'zurich': 'Zurich,CH',
+            'brussels': 'Brussels,BE',
+        };
+
+        // City biographies
+        const cityBiographies = {
+            'rome': {
+                title: 'About Rome, Italy',
+                text: 'Rome, the Eternal City, is a living museum where ancient history meets modern life. With nearly 3,000 years of history, Rome houses incredible monuments like the Colosseum, Roman Forum, and Vatican City. As the former center of the Roman Empire and current capital of Italy, Rome continues to captivate visitors with its art, architecture, and culinary traditions.'
+            },
+            'paris': {
+                title: 'About Paris, France',
+                text: 'Paris, the City of Light, is renowned worldwide for its art, fashion, gastronomy, and culture. Home to the Eiffel Tower, Louvre Museum, and Notre-Dame Cathedral, Paris has been a center of art and learning for centuries. The city\'s elegant boulevards, charming cafés, and romantic atmosphere make it one of the world\'s most visited destinations.'
+            },
+            'new york': {
+                title: 'About New York City',
+                text: 'New York City, the Big Apple, is America\'s most populous city and a global hub for finance, arts, fashion, and culture. From the towering skyscrapers of Manhattan to the artistic neighborhoods of Brooklyn, NYC is known for its energy, diversity, and endless opportunities. Home to the Statue of Liberty, Central Park, and Broadway, it truly never sleeps.'
+            },
+            'tokyo': {
+                title: 'About Tokyo, Japan',
+                text: 'Tokyo, Japan\'s bustling capital, masterfully combines ultramodern technology with traditional culture. From ancient temples and gardens to neon-lit skyscrapers and cutting-edge technology, Tokyo offers contrasts that fascinate visitors. As one of the world\'s most populous metropolitan areas, it\'s known for its efficient public transportation, incredible cuisine, and unique pop culture.'
+            },
+            'dubai': {
+                title: 'About Dubai, UAE',
+                text: 'Dubai is a glamorous emirate known for luxury shopping, ultramodern architecture, and vibrant nightlife. Rising from the desert in just a few decades, Dubai has become a global business and tourism hub. Famous for the Burj Khalifa, artificial islands, and gold souks, it represents the perfect blend of traditional Arabian culture and futuristic innovation.'
+            },
+            'sydney': {
+                title: 'About Sydney, Australia',
+                text: 'Sydney, Australia\'s largest city, is famous for its stunning harbor, iconic Opera House, and beautiful beaches. Built around one of the world\'s most beautiful natural harbors, Sydney combines urban sophistication with outdoor lifestyle. The city is known for its laid-back culture, excellent coffee, diverse food scene, and proximity to both beaches and national parks.'
+            },
+            'barcelona': {
+                title: 'About Barcelona, Spain',
+                text: 'Barcelona, the capital of Catalonia, is renowned for its unique architecture, vibrant culture, and Mediterranean charm. Famous for Antoni Gaudí\'s masterpieces like the Sagrada Família and Park Güell, Barcelona seamlessly blends Gothic and modernist architecture. The city\'s beaches, tapas culture, and artistic heritage make it one of Europe\'s most beloved destinations.'
+            },
+            'amsterdam': {
+                title: 'About Amsterdam, Netherlands',
+                text: 'Amsterdam, the capital of the Netherlands, is famous for its artistic heritage, elaborate canal system, and narrow houses with gabled facades. The city\'s Golden Age legacy lives on in its museums, including the Van Gogh Museum and Rijksmuseum. Known for its liberal culture, cycling infrastructure, and charming canals, Amsterdam offers a unique European experience.'
+            },
+            'istanbul': {
+                title: 'About Istanbul, Turkey',
+                text: 'Istanbul, Turkey\'s cultural and economic center, is the only city that straddles two continents - Europe and Asia. This historic city was once the capital of Byzantine and Ottoman empires, evident in its stunning architecture like Hagia Sophia and the Blue Mosque. Istanbul\'s rich history, vibrant bazaars, and strategic location make it a bridge between East and West.'
+            },
+            'berlin': {
+                title: 'About Berlin, Germany',
+                text: 'Berlin, Germany\'s capital, is a city that has witnessed tremendous historical changes. From its division during the Cold War to its reunification, Berlin has emerged as a vibrant cultural and political center. Known for its museums, galleries, nightlife, and green spaces, Berlin represents resilience and creativity in the heart of Europe.'
+            },
+            'moscow': {
+                title: 'About Moscow, Russia',
+                text: 'Moscow, Russia\'s capital and largest city, is known for its distinctive architecture including the Kremlin and Red Square. As the political, economic, and cultural center of Russia, Moscow showcases the country\'s rich history through its palaces, cathedrals, and museums. The city\'s grand boulevards, metro stations, and cultural institutions reflect its importance in Russian heritage.'
+            },
+            'singapore': {
+                title: 'About Singapore',
+                text: 'Singapore is a modern city-state known for its cleanliness, efficiency, and multicultural harmony. Despite its small size, Singapore has become a major financial hub and cultural melting pot in Southeast Asia. Famous for its futuristic architecture, Gardens by the Bay, and diverse culinary scene, Singapore represents successful urban planning and cultural integration.'
+            },
+            'mumbai': {
+                title: 'About Mumbai, India',
+                text: 'Mumbai, India\'s financial capital, is a bustling metropolis known as the City of Dreams. Home to Bollywood, India\'s film industry, Mumbai is where traditional Indian culture meets modern aspirations. The city\'s colonial architecture, bustling markets, and entrepreneurial spirit make it the commercial heart of India and a city of endless possibilities.'
+            },
+            'bangkok': {
+                title: 'About Bangkok, Thailand',
+                text: 'Bangkok, Thailand\'s vibrant capital, is known for its ornate temples, bustling street life, and incredible food scene. The city seamlessly blends traditional Thai culture with modern development. From floating markets to golden temples, from street food to luxury shopping malls, Bangkok offers visitors an authentic taste of Southeast Asian culture and hospitality.'
+            },
+            'hong kong': {
+                title: 'About Hong Kong',
+                text: 'Hong Kong is a special administrative region known for its impressive skyline, bustling harbor, and unique blend of Eastern and Western cultures. As a major financial center, Hong Kong offers world-class dining, shopping, and business opportunities. The city\'s compact size allows visitors to experience urban sophistication, traditional markets, and natural beauty all in one place.'
+            },
+            'cairo': {
+                title: 'About Cairo, Egypt',
+                text: 'Cairo, Egypt\'s sprawling capital, is home to ancient wonders including the nearby Giza Pyramids and Great Sphinx. Known as "The City of a Thousand Minarets," Cairo has been a center of learning and culture in the Arab world for over a millennium. The city\'s Islamic architecture, bustling bazaars, and rich history make it a fascinating gateway to ancient civilizations.'
+            },
+            'cape town': {
+                title: 'About Cape Town, South Africa',
+                text: 'Cape Town, South Africa\'s legislative capital, is renowned for its stunning natural beauty, with Table Mountain overlooking the city and pristine beaches nearby. Known as the Mother City, Cape Town combines African heritage with European influences, evident in its architecture, cuisine, and wine culture. The city serves as a gateway to Africa\'s diverse landscapes and cultures.'
+            },
+            'nairobi': {
+                title: 'About Nairobi, Kenya',
+                text: 'Nairobi, Kenya\'s capital, is known as the "Green City in the Sun" for its mild climate and numerous parks. As East Africa\'s economic hub, Nairobi serves as a gateway to some of the world\'s most famous wildlife reserves. The city uniquely combines urban development with proximity to nature, including the famous Nairobi National Park right on its doorstep.'
+            },
+            'lagos': {
+                title: 'About Lagos, Nigeria',
+                text: 'Lagos, Nigeria\'s largest city, is West Africa\'s economic powerhouse and cultural center. Known for its vibrant music scene, particularly Afrobeats, Lagos is a melting pot of cultures and languages. The city\'s entrepreneurial spirit, bustling markets, and growing tech scene make it one of Africa\'s most dynamic metropolitan areas.'
+            },
+            'london': {
+                title: 'About London, England',
+                text: 'London, the capital of England and the United Kingdom, is a vibrant metropolis steeped in history. Home to iconic landmarks like Big Ben, Tower Bridge, and Buckingham Palace, London seamlessly blends ancient heritage with modern innovation. As a global financial hub and cultural center, the city hosts world-class museums, theaters, and diverse neighborhoods that reflect its multicultural spirit.'
+            },
+            // Add more cities as needed
+            'default': {
+                title: 'About This City',
+                text: 'This beautiful city has its own unique character, culture, and attractions. Every location on Earth has its own story to tell, from its geographical features to its cultural heritage. Weather patterns and local climate play an important role in shaping the daily life and character of each place.'
+            }
+        };
+
+        function preprocessCityName(city) {
+            const cityLower = city.toLowerCase().trim();
+            
+            // Check if user already included country code
+            if (cityLower.includes(',')) {
+                return city;
+            }
+            
+            // Check if it's a major city and add appropriate country code
+            if (majorCities[cityLower]) {
+                return majorCities[cityLower];
+            }
+            
+            return city;
+        }
+
+        function getLocalTime(timezoneOffset) {
+            const now = new Date();
+            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+            const localTime = new Date(utc + (timezoneOffset * 1000));
+            
+            return localTime.toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+
+        function getCityBiography(cityName) {
+            // Try to match biography by city name (case insensitive)
+            const cityKey = cityName.toLowerCase().split(',')[0].trim();
+            return cityBiographies[cityKey] || cityBiographies['default'];
+        }
 
         async function getWeather(city) {
             try {
@@ -270,8 +518,11 @@
                 weatherInfo.classList.remove('show');
                 error.classList.remove('show');
 
+                // Preprocess city name to add country code for major cities
+                const processedCity = preprocessCityName(city);
+
                 const response = await fetch(
-                    `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`
+                    `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(processedCity)}&appid=${API_KEY}&units=metric`
                 );
 
                 if (!response.ok) {
@@ -281,7 +532,7 @@
                 const data = await response.json();
                 displayWeather(data);
             } catch (err) {
-                showError(err.message);
+                showError(`${err.message}. Try adding country code (e.g., "Rome,IT" for Italy).`);
             } finally {
                 loading.classList.remove('show');
             }
@@ -289,6 +540,11 @@
 
         function displayWeather(data) {
             cityName.textContent = `${data.name}, ${data.sys.country}`;
+            
+            // Display local time
+            const timeString = getLocalTime(data.timezone);
+            localTime.textContent = `🕒 ${timeString}`;
+            
             temperature.textContent = `${Math.round(data.main.temp)}°C`;
             description.textContent = data.weather[0].description;
             weatherIcon.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
@@ -296,6 +552,11 @@
             humidity.textContent = `${data.main.humidity}%`;
             windSpeed.textContent = `${data.wind.speed} m/s`;
             pressure.textContent = `${data.main.pressure} hPa`;
+
+            // Display city biography
+            const biography = getCityBiography(data.name);
+            biographyTitle.textContent = biography.title;
+            biographyText.textContent = biography.text;
 
             // Update background with city image
             updateBackground(data.name);
@@ -306,13 +567,13 @@
         function updateBackground(cityName) {
             // City-specific images using a curated map
             const cityImages = {
+                'rome': 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1920',
                 'london': 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920',
                 'paris': 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1920',
                 'new york': 'https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?w=1920',
                 'tokyo': 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1920',
                 'dubai': 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1920',
                 'sydney': 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=1920',
-                'rome': 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1920',
                 'barcelona': 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1920',
                 'amsterdam': 'https://images.unsplash.com/photo-1534351590666-13e3e96b5017?w=1920',
                 'istanbul': 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=1920',
@@ -322,26 +583,10 @@
                 'mumbai': 'https://images.unsplash.com/photo-1567157577867-05ccb1388e66?w=1920',
                 'bangkok': 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=1920',
                 'hong kong': 'https://images.unsplash.com/photo-1536599424071-5a1be4929df6?w=1920',
-                'los angeles': 'https://images.unsplash.com/photo-1534190239940-9ba8944ea261?w=1920',
-                'chicago': 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920',
-                'san francisco': 'https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=1920',
-                'miami': 'https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?w=1920',
-                // African cities
                 'cairo': 'https://images.unsplash.com/photo-1572252009286-268acec5ca0a?w=1920',
                 'cape town': 'https://images.unsplash.com/photo-1580060839134-75a5edca2e99?w=1920',
-                'johannesburg': 'https://images.unsplash.com/photo-1577948000111-9c970dfe3743?w=1920',
                 'nairobi': 'https://images.unsplash.com/photo-1611348524140-53c9a25263d6?w=1920',
                 'lagos': 'https://images.unsplash.com/photo-1609425262924-386f1efa6e3b?w=1920',
-                'marrakech': 'https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=1920',
-                'accra': 'https://images.unsplash.com/photo-1568632234261-c4a5b6e05c97?w=1920',
-                'dar es salaam': 'https://images.unsplash.com/photo-1568632234261-c4a5b6e05c97?w=1920',
-                'addis ababa': 'https://images.unsplash.com/photo-1609840112855-9ab5b0c5f2ad?w=1920',
-                'casablanca': 'https://images.unsplash.com/photo-1605731414204-67693c63dfa5?w=1920',
-                'tunis': 'https://images.unsplash.com/photo-1582672060674-bc2bd808a8b5?w=1920',
-                'kigali': 'https://images.unsplash.com/photo-1612467187655-d028bfd7dc03?w=1920',
-                'pretoria': 'https://images.unsplash.com/photo-1591608971362-f08b2a75731a?w=1920',
-                'kampala': 'https://images.unsplash.com/photo-1611348524140-53c9a25263d6?w=1920',
-                'lusaka': 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?w=1920'
             };
 
             const cityKey = cityName.toLowerCase();
@@ -389,7 +634,7 @@
         });
 
         // Load default city on page load
-        getWeather('London');
+        getWeather('Rome,IT');
     </script>
 </body>
 </html>
